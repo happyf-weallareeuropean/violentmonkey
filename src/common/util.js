@@ -132,6 +132,33 @@ export function string2uint8array(str) {
   return array;
 }
 
+// compare two dotted version strings
+// allow a, aa, Aa … : if a part starts with a letter we treat it as `0`-prefixed
+// so 0a  < 0b  < 1   just like before, while aa < ab < ba < bb
+export function cmpVersion(a = '', b = '') {
+  const pa = a.split('.').filter(Boolean);
+  const pb = b.split('.').filter(Boolean);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const ap = pa[i] ?? '0';
+    const bp = pb[i] ?? '0';
+    const na = parseInt(ap, 10);
+    const nb = parseInt(bp, 10);
+    const da = !Number.isNaN(na);
+    const db = !Number.isNaN(nb);
+    const sa = (da ? ap.slice(String(na).length) : ap).toLowerCase();
+    const sb = (db ? bp.slice(String(nb).length) : bp).toLowerCase();
+    if (da && db) {
+      if (na !== nb) return na > nb ? 1 : -1;
+      if (sa === sb) continue;
+      return sa > sb ? 1 : -1;
+    }
+    if (da !== db) return da ? 1 : -1;
+    if (sa === sb) continue;
+    return sa > sb ? 1 : -1;
+  }
+  return 0;
+}
+
 const VERSION_RE = /^(.*?)-([-.0-9a-z]+)|$/i;
 const DIGITS_RE = /^\d+$/; // using regexp to avoid +'1e2' being parsed as 100
 
@@ -163,7 +190,7 @@ function compareVersionChunk(ver1, ver2, isSemverMode) {
         ? a - b
         : a > b || a < b && -1;
     } else {
-      delta = (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0);
+      delta = cmpVersion(a, b);
     }
   }
   return delta || isSemverMode && (len1 - len2);
